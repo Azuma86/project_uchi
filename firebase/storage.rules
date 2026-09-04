@@ -1,0 +1,55 @@
+rules_version = '2';
+
+// =============================================================================
+// UCHI+ Cloud Storage Security Rules
+// =============================================================================
+//
+// このアプリでは、ブラウザから Firebase Storage SDK を使わない。
+// 代わりにサーバー (Cloud Run) が「署名付き URL (Signed URL)」を発行し、
+// ブラウザはその URL を使って Cloud Storage と直接やり取りする。
+//
+//   アップロード: Server Action が署名付き PUT URL を発行 -> ブラウザが PUT
+//   閲覧        : Server Component が署名付き GET URL を発行 -> <img src>
+//
+// この方式の利点:
+//   - 保存先パスをサーバーが決められる (クライアントが任意の場所に書けない)
+//   - 家族 ID の検証をサーバーの権限ロジックと共通化できる
+//   - 領収書のように「申請者本人と admin だけ」といった細かい条件を書ける
+//     (Storage Rules では他コレクションの role を参照しづらい)
+//
+// したがって Firebase Storage 経由のアクセスはすべて拒否する。
+// これは「使わない入口は閉じておく」という多層防御。
+// 万が一クライアントコードが Storage SDK を使ってしまっても、
+// ここで止まる。
+//
+// 注意:
+//   Storage Rules は firebasestorage.googleapis.com 経由のリクエストにのみ
+//   適用される。署名付き URL や GCS の JSON API には適用されない。
+//   そちらは「バケットを非公開に保つこと」と「IAM」で守る。
+//   バケットに allUsers / allAuthenticatedUsers を絶対に付与しないこと。
+// =============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // すべて拒否 (署名付き URL 経由のみを許可する運用)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 参考: もし将来 Firebase Storage SDK を直接使う方式へ切り替える場合の例。
+    // Firestore の members ドキュメントを参照して家族メンバーか判定する。
+    // (firestore.get はリクエストごとに課金対象の read が発生する点に注意)
+    //
+    // match /families/{familyId}/photos/{fileName} {
+    //   allow read: if request.auth != null
+    //     && exists(/databases/(default)/documents/families/$(familyId)/members/$(request.auth.uid));
+    //   allow write: if request.auth != null
+    //     && exists(/databases/(default)/documents/families/$(familyId)/members/$(request.auth.uid))
+    //     && request.resource.size < 5 * 1024 * 1024
+    //     && request.resource.contentType.matches('image/(webp|jpeg)');
+    // }
+    // -------------------------------------------------------------------------
+  }
+}

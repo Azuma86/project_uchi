@@ -1,0 +1,51 @@
+{
+  "name": "uchi-plus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UCHI+ — 家族向けプライベートPWA (カレンダー / アルバム / 経費申請)",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "test:rules": "firebase emulators:exec --only firestore --project uchi-plus-demo \"vitest run --project rules\"",
+    "test:all": "npm run test && npm run test:emulator",
+    "emulators": "firebase emulators:start --project uchi-plus-demo --import ./.emulator-data --export-on-exit ./.emulator-data",
+    "seed": "tsx scripts/seed.ts",
+    "docker:build": "docker build -t uchi-plus:local .",
+    "docker:run": "docker run --rm -p 8080:8080 --env-file .env.docker uchi-plus:local",
+    "test:integration": "firebase emulators:exec --only firestore,auth,storage --project uchi-plus-demo \"vitest run --project integration\"",
+    "test:emulator": "firebase emulators:exec --only firestore,auth,storage --project uchi-plus-demo \"vitest run --project integration --project rules\""
+  },
+  "dependencies": {
+    "@google-cloud/secret-manager": "^6.1.0",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
+    "next": "^16.3.4",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.4",
+    "firebase-tools": "^15.29.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.0"
+  }
+}

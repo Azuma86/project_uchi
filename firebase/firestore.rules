@@ -1,0 +1,314 @@
+rules_version = '2';
+
+// =============================================================================
+// UCHI+ Firestore Security Rules
+// =============================================================================
+//
+// これは「データベース側の防御」。ブラウザから Firebase の ID トークンさえ
+// あれば Firestore の REST/gRPC API を直接叩けるため、アプリの画面で
+// ボタンを隠していても意味がない。最終的な可否はここで決まる。
+//
+// このアプリの通常の読み書きは Server Action (Admin SDK) 経由で行う。
+// Admin SDK は Security Rules をバイパスするので、サーバー側では
+// src/lib/permissions と src/lib/auth/session が同じ判定を行っている。
+// つまり多層防御:
+//   [1] Security Rules   … クライアント SDK からの直接アクセスを遮断
+//   [2] Server Action     … サーバー側で role と familyId を検証
+//   [3] UI                … ボタンを出さない (利便性のためであり防御ではない)
+//
+// 保証すること:
+//   - 未ログインユーザーは一切アクセスできない
+//   - 所属していない家族のデータは読めない / 書けない
+//   - member は admin 専用操作 (承認・メンバー管理) を実行できない
+//   - 経費の承認・却下は admin のみ、かつ pending からのみ
+//   - クライアントが familyId を書き換えても別家族へは到達できない
+//     (パスの familyId に対する members/{自分の uid} の存在で判定するため)
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // 共通ヘルパー
+    // -------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    // 家族メンバーであることの判定。
+    // ここが「家族分離」の要。クライアントが familyId を変えても、
+    // その家族の members/{自分の uid} が存在しなければ false になる。
+    function isMember(familyId) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/families/$(familyId)/members/$(uid()));
+    }
+
+    function memberRole(familyId) {
+      return get(/databases/$(database)/documents/families/$(familyId)/members/$(uid())).data.role;
+    }
+
+    function isAdmin(familyId) {
+      return isMember(familyId) && memberRole(familyId) == 'admin';
+    }
+
+    // 変更されたフィールドが許可リストの範囲に収まっているか
+    function changedKeysWithin(allowed) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
+    }
+
+    function unchanged(field) {
+      return !(field in request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    // ドキュメント内の familyId がパス上の familyId と一致すること。
+    // (書き込み時に別家族の ID を紛れ込ませる攻撃を防ぐ)
+    function familyIdMatches(familyId) {
+      return request.resource.data.familyId == familyId;
+    }
+
+    function isNonEmptyString(value, maxLength) {
+      return value is string && value.size() > 0 && value.size() <= maxLength;
+    }
+
+    function isOptionalString(value, maxLength) {
+      return value == null || (value is string && value.size() <= maxLength);
+    }
+
+    // -------------------------------------------------------------------------
+    // 上記 expenses の update で使う判定
+    // (Firestore のルール関数はスコープの都合で match の外に書けないため、
+    //  familyId を引数で受け取る形にしている)
+    // -------------------------------------------------------------------------
+    function isApplicantEdit(familyId) {
+      return isMember(familyId)
+        // 申請者本人であること
+        && resource.data.applicantUserId == uid()
+        && request.resource.data.applicantUserId == uid()
+        // 申請前 (draft) か却下後 (rejected) だけ編集できる。
+        // pending / approved は編集不可 = 承認者が見た内容が後から変わらない。
+        && resource.data.status in ['draft', 'rejected']
+        // 遷移先は draft (保存) か pending (申請) のみ。
+        // ここで approved を弾くので「自分で承認済みにする」ことはできない。
+        && request.resource.data.status in ['draft', 'pending']
+        && unchanged('familyId')
+        // 審査結果を自分で書き換えられないようにする
+        && request.resource.data.reviewedBy == null
+        && request.resource.data.reviewedAt == null
+        && request.resource.data.amount is int
+        && request.resource.data.amount > 0
+        && request.resource.data.amount <= 10000000
+        && request.resource.data.category in
+           ['food', 'daily', 'education', 'medical', 'transport', 'entertainment', 'other']
+        && isNonEmptyString(request.resource.data.merchant, 100);
+    }
+
+    function isAdminReview(familyId) {
+      return isAdmin(familyId)
+        // 承認できるのは「承認待ち」だけ。二重承認や承認済みの取り消しは不可。
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'rejected']
+        // 誰が審査したかを詐称できないようにする
+        && request.resource.data.reviewedBy == uid()
+        && request.resource.data.reviewedAt == request.time
+        // 金額や店舗名を審査時に書き換えられないようにする
+        && changedKeysWithin(['status', 'adminComment', 'reviewedBy', 'reviewedAt', 'updatedAt'])
+        && isOptionalString(request.resource.data.adminComment, 500);
+    }
+
+    // -------------------------------------------------------------------------
+    // users/{userId}
+    //   本人だけが読める。書き込みはサーバー (Admin SDK) 経由のみ。
+    //   familyIds をクライアントに書かせると、任意の家族へ「所属」できてしまう。
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow get: if isSignedIn() && uid() == userId;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // inviteCodes/{code}
+    //   招待コード -> familyId の逆引き。
+    //   クライアントから読めると総当たりで家族 ID を集められるため完全に遮断し、
+    //   参加処理は Server Action (Admin SDK) だけが行う。
+    // -------------------------------------------------------------------------
+    match /inviteCodes/{code} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // families/{familyId}
+    // -------------------------------------------------------------------------
+    match /families/{familyId} {
+      allow get: if isMember(familyId);
+      // 家族の一覧取得は禁止 (全家族が列挙できてしまう)
+      allow list: if false;
+
+      // 家族の作成はサーバー経由のみ。
+      // 「家族ドキュメント + members/{uid} + users/{uid}.familyIds」を
+      // 原子的に作る必要があり、クライアントでは整合性を保証できないため。
+      allow create: if false;
+
+      // 名前だけ admin が変更できる。招待コードや人数はサーバー管理。
+      allow update: if isAdmin(familyId)
+        && changedKeysWithin(['name', 'updatedAt'])
+        && isNonEmptyString(request.resource.data.name, 50);
+
+      allow delete: if false;
+
+      // -----------------------------------------------------------------------
+      // members/{memberId}   doc ID = Firebase UID
+      // -----------------------------------------------------------------------
+      match /members/{memberId} {
+        allow read: if isMember(familyId);
+
+        // 参加処理はサーバー経由 (招待コードの検証が必要なため)
+        allow create: if false;
+
+        allow update: if
+          // 本人が自分の表示名 / アイコンだけ変更する
+          (isMember(familyId) && memberId == uid()
+            && changedKeysWithin(['displayName', 'photoUrl'])
+            && isNonEmptyString(request.resource.data.displayName, 30))
+          // admin が role を変更する (自分自身の降格は禁止 = 管理者ゼロを防ぐ)
+          || (isAdmin(familyId) && memberId != uid()
+            && changedKeysWithin(['role'])
+            && request.resource.data.role in ['admin', 'member']);
+
+        // メンバー削除は admin のみ。自分自身は削除できない。
+        allow delete: if isAdmin(familyId) && memberId != uid();
+      }
+
+      // -----------------------------------------------------------------------
+      // events/{eventId}   共有カレンダー
+      //   予定の作成・編集は家族全員。削除は作成者か admin。
+      // -----------------------------------------------------------------------
+      match /events/{eventId} {
+        allow read: if isMember(familyId);
+
+        allow create: if isMember(familyId)
+          && familyIdMatches(familyId)
+          && request.resource.data.createdBy == uid()
+          && isNonEmptyString(request.resource.data.title, 100)
+          && request.resource.data.startAt is timestamp
+          && request.resource.data.endAt is timestamp
+          && request.resource.data.endAt >= request.resource.data.startAt
+          && request.resource.data.allDay is bool
+          && isOptionalString(request.resource.data.location, 200)
+          && isOptionalString(request.resource.data.description, 2000);
+
+        allow update: if isMember(familyId)
+          && unchanged('familyId')
+          && unchanged('createdBy')
+          && isNonEmptyString(request.resource.data.title, 100)
+          && request.resource.data.startAt is timestamp
+          && request.resource.data.endAt is timestamp
+          && request.resource.data.endAt >= request.resource.data.startAt;
+
+        allow delete: if isMember(familyId)
+          && (resource.data.createdBy == uid() || isAdmin(familyId));
+      }
+
+      // -----------------------------------------------------------------------
+      // albums/{albumId}
+      // -----------------------------------------------------------------------
+      match /albums/{albumId} {
+        allow read: if isMember(familyId);
+
+        allow create: if isMember(familyId)
+          && familyIdMatches(familyId)
+          && request.resource.data.createdBy == uid()
+          && isNonEmptyString(request.resource.data.name, 50)
+          && request.resource.data.photoCount == 0;
+
+        // 枚数やカバー写真は非正規化した値なのでサーバーだけが更新する
+        allow update: if isMember(familyId)
+          && changedKeysWithin(['name', 'description', 'updatedAt'])
+          && isNonEmptyString(request.resource.data.name, 50);
+
+        allow delete: if isMember(familyId)
+          && (resource.data.createdBy == uid() || isAdmin(familyId));
+      }
+
+      // -----------------------------------------------------------------------
+      // photos/{photoId}
+      //   実体は Cloud Storage。ここにはメタデータだけ置く。
+      //   storagePath が families/{familyId}/ 配下であることを必ず検証する。
+      // -----------------------------------------------------------------------
+      match /photos/{photoId} {
+        allow read: if isMember(familyId);
+
+        allow create: if isMember(familyId)
+          && familyIdMatches(familyId)
+          && request.resource.data.uploadedBy == uid()
+          && request.resource.data.storagePath is string
+          && request.resource.data.storagePath.matches('^families/' + familyId + '/photos/[0-9a-f-]{36}[.](webp|jpg)$')
+          && request.resource.data.takenAt is timestamp
+          && isOptionalString(request.resource.data.caption, 300);
+
+        // キャプション / 所属アルバムだけ変更可。保存先は変えられない。
+        allow update: if isMember(familyId)
+          && (resource.data.uploadedBy == uid() || isAdmin(familyId))
+          && changedKeysWithin(['caption', 'albumId'])
+          && isOptionalString(request.resource.data.caption, 300);
+
+        allow delete: if isMember(familyId)
+          && (resource.data.uploadedBy == uid() || isAdmin(familyId));
+      }
+
+      // -----------------------------------------------------------------------
+      // expenses/{expenseId}   経費申請 — 本アプリで最も重要なルール
+      // -----------------------------------------------------------------------
+      match /expenses/{expenseId} {
+        // 家族の家計なので閲覧は全員に許可する。
+        // (下書きを本人にしか見せない絞り込みはサーバー側で行う。
+        //  クエリ全体の可否を判定する list ルールでは表現しにくいため)
+        allow read: if isMember(familyId);
+
+        // 作成: 申請者は自分自身。審査結果のフィールドは空でなければならない。
+        allow create: if isMember(familyId)
+          && familyIdMatches(familyId)
+          && request.resource.data.applicantUserId == uid()
+          && request.resource.data.status in ['draft', 'pending']
+          && request.resource.data.reviewedBy == null
+          && request.resource.data.reviewedAt == null
+          && request.resource.data.adminComment == null
+          && request.resource.data.amount is int
+          && request.resource.data.amount > 0
+          && request.resource.data.amount <= 10000000
+          && request.resource.data.category in
+             ['food', 'daily', 'education', 'medical', 'transport', 'entertainment', 'other']
+          && isNonEmptyString(request.resource.data.merchant, 100)
+          && request.resource.data.purchaseDate is timestamp
+          && (request.resource.data.receiptStoragePath == null
+              || request.resource.data.receiptStoragePath
+                   .matches('^families/' + familyId + '/receipts/[0-9a-f-]{36}[.](webp|jpg)$'));
+
+        // 更新は 2 通りだけ。それ以外は拒否。
+        allow update: if isApplicantEdit(familyId) || isAdminReview(familyId);
+
+        // 承認済みは家計の記録として残す (誰も消せない)。
+        allow delete: if isMember(familyId)
+          && resource.data.status != 'approved'
+          && ((resource.data.applicantUserId == uid() && resource.data.status != 'pending')
+              || isAdmin(familyId));
+      }
+    }
+
+    // 申請者による取り下げ (pending -> draft) は Server Action 経由でのみ許可する。
+    // クライアントから直接行えるようにすると、admin が承認しようとしている最中に
+    // 取り下げられて競合するため。
+
+    // -------------------------------------------------------------------------
+    // 明示的な拒否 (上のどれにも当たらないパス)
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

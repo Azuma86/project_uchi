@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "YOUR_GCP_PROJECT_ID",
+    "dev": "uchi-plus-dev",
+    "staging": "uchi-plus-staging",
+    "prod": "uchi-plus-prod"
+  }
+}

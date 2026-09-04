@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+/*
+ * UCHI+ デザイントークン
+ *
+ * 方針: 家族が毎日開くアプリなので、色数を絞って落ち着いた印象にする。
+ *  - 背景はわずかに温かみのあるオフホワイト (真っ白は目が疲れる)
+ *  - アクセントはテラコッタ 1 色。重要な操作にだけ使う。
+ *  - タップ領域は最低 44px (iOS のヒューマンインターフェースガイドライン)
+ */
+@theme {
+  --color-cream: #faf8f5;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f0eb;
+  --color-ink: #2e2a26;
+  --color-ink-soft: #6b6259;
+  --color-ink-faint: #9c948b;
+  --color-line: #e6e0d8;
+  --color-brand: #e07a5f;
+  --color-brand-dark: #c8603f;
+  --color-brand-soft: #fbe9e3;
+  --color-accent: #6b8f71;
+  --color-accent-soft: #e6efe6;
+  --color-warn: #d99a2b;
+  --color-warn-soft: #fbf1dd;
+  --color-danger: #c4553d;
+  --color-danger-soft: #fbe6e1;
+  --color-info: #4a7fa5;
+  --color-info-soft: #e4eef5;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
+    Meiryo, sans-serif;
+
+  --radius-card: 16px;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  /* iOS で入力欄フォーカス時に勝手に拡大されないよう 16px を基準にする */
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* iPhone のホームインジケータ / ノッチ対応 */
+  padding-bottom: env(safe-area-inset-bottom);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+/* PWA standalone 表示でのテキスト選択のちらつきを防ぐ */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+  }
+  input,
+  textarea,
+  [contenteditable] {
+    user-select: text;
+  }
+}
+
+/* タップ時のハイライトを自前のスタイルに任せる */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 数値は等幅にして金額の桁を揃える */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* スクロールバーを控えめに (PC) */
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--color-line);
+    border-radius: 999px;
+    border: 3px solid var(--color-cream);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-in {
+  animation: fade-in-up 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+}

@@ -1,0 +1,17 @@
+# terraform.tfvars にコピーして使う (.gitignore 済み)
+
+project_id  = "uchi-plus-dev"
+region      = "asia-northeast1"
+environment = "dev"
+
+# GitHub Actions からデプロイする場合 (owner/repo)
+github_repository = "your-name/uchi-plus"
+
+# 初回 apply の後、Cloud Run の URL を控えてここに設定し直して再 apply する
+app_url = "https://uchi-plus-xxxxxxxxxx-an.a.run.app"
+
+# Firebase コンソール > プロジェクトの設定 > マイアプリ から取得する
+firebase_api_key             = "AIzaSy..."
+firebase_auth_domain         = "uchi-plus-dev.firebaseapp.com"
+firebase_app_id              = "1:1234567890:web:abcdef"
+firebase_messaging_sender_id = "1234567890"

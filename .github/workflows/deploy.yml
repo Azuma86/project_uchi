@@ -1,0 +1,167 @@
+name: Deploy to Cloud Run
+
+# =============================================================================
+# GitHub Actions -> Workload Identity Federation -> Artifact Registry -> Cloud Run
+# =============================================================================
+#
+# サービスアカウントの「鍵ファイル (JSON)」を GitHub Secrets に置かない。
+#
+# 鍵ファイル方式の問題:
+#   - 鍵は期限が無く、漏洩しても気付きにくい
+#   - GitHub Secrets から漏れると誰でも GCP を操作できる
+#   - 定期的なローテーションが必要
+#
+# Workload Identity Federation (WIF) は、GitHub Actions が発行する
+# 短命な OIDC トークンを GCP が検証し、その場限りのアクセストークンに
+# 交換する仕組み。GCP 側に「このリポジトリのこのブランチだけ」という
+# 条件を書けるので、鍵を保存する必要がなくなる。
+#
+# 設定手順は README「GitHub Actions と Workload Identity Federation」を参照。
+# =============================================================================
+
+on:
+  push:
+    branches: [main]
+  # 手動デプロイも可能にしておく (ロールバックや検証用)
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: デプロイ先
+        required: true
+        default: production
+        type: choice
+        options: [production, staging]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGION: asia-northeast1
+  SERVICE: uchi-plus
+  REPOSITORY: uchi-plus
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ inputs.environment || 'production' }}
+
+    permissions:
+      # WIF で OIDC トークンを発行するために必須
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 依存関係のインストール
+        run: npm ci
+
+      # デプロイ前に最低限の検証を行う (壊れたものを本番へ出さない)
+      - name: Lint / 型チェック / テスト
+        run: |
+          npm run lint
+          npm run typecheck
+          npm test
+
+      # -----------------------------------------------------------------------
+      # GCP 認証 (鍵ファイル不要)
+      # -----------------------------------------------------------------------
+      - name: GCP へ認証 (Workload Identity Federation)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          # 例: projects/123456789/locations/global/workloadIdentityPools/github/providers/github
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          # 例: uchi-plus-deployer@PROJECT_ID.iam.gserviceaccount.com
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: gcloud のセットアップ
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Artifact Registry への Docker 認証
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # -----------------------------------------------------------------------
+      # ビルドと push
+      # -----------------------------------------------------------------------
+      - name: イメージのタグを決める
+        id: image
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}"
+          echo "uri=${IMAGE}" >> "$GITHUB_OUTPUT"
+          # コミット SHA でタグ付けすると「どのリビジョンがどのコードか」が確実に分かる
+          echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Docker イメージのビルド
+        run: |
+          docker build \
+            --tag "${{ steps.image.outputs.uri }}:${{ steps.image.outputs.tag }}" \
+            --tag "${{ steps.image.outputs.uri }}:latest" \
+            .
+
+      - name: Artifact Registry へ push
+        run: |
+          docker push "${{ steps.image.outputs.uri }}:${{ steps.image.outputs.tag }}"
+          docker push "${{ steps.image.outputs.uri }}:latest"
+
+      # -----------------------------------------------------------------------
+      # Cloud Run へデプロイ
+      # -----------------------------------------------------------------------
+      - name: Cloud Run へデプロイ
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ steps.image.outputs.uri }}:${{ steps.image.outputs.tag }}
+          # アプリ用サービスアカウント (デプロイ用とは別。最小権限)
+          flags: >-
+            --service-account=${{ secrets.RUNTIME_SERVICE_ACCOUNT }}
+            --min-instances=0
+            --max-instances=3
+            --cpu=1
+            --memory=512Mi
+            --concurrency=80
+            --timeout=60s
+            --allow-unauthenticated
+            --cpu-boost
+          env_vars: |
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            FIREBASE_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            FIREBASE_API_KEY=${{ secrets.FIREBASE_API_KEY }}
+            FIREBASE_AUTH_DOMAIN=${{ secrets.FIREBASE_AUTH_DOMAIN }}
+            FIREBASE_APP_ID=${{ secrets.FIREBASE_APP_ID }}
+            FIREBASE_MESSAGING_SENDER_ID=${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+            GCS_BUCKET=${{ secrets.GCS_BUCKET }}
+            APP_URL=${{ secrets.APP_URL }}
+            NOTIFICATION_DRIVER=console
+            OCR_DRIVER=dummy
+            LOG_LEVEL=info
+          # 秘密情報は Secret Manager から注入する (GitHub Secrets には置かない)
+          # 使わない場合はこのブロックごと削除してよい
+          secrets: |
+            LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest
+            LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest
+
+      - name: デプロイ結果の表示
+        run: |
+          echo "デプロイ先: ${{ steps.deploy.outputs.url }}"
+          echo "イメージ:   ${{ steps.image.outputs.uri }}:${{ steps.image.outputs.tag }}"
+
+      # -----------------------------------------------------------------------
+      # Firestore のルールとインデックスも一緒に反映する
+      # (アプリだけ更新してルールが古いままだと権限エラーになるため)
+      # -----------------------------------------------------------------------
+      - name: Firestore ルール / インデックスのデプロイ
+        run: |
+          npx firebase-tools@15 deploy \
+            --only firestore:rules,firestore:indexes,storage \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --non-interactive
