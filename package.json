@@ -8,20 +8,21 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:local": "sh scripts/dev-local.sh",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project unit",
     "test:watch": "vitest --project unit",
-    "test:rules": "firebase emulators:exec --only firestore --project uchi-plus-demo \"vitest run --project rules\"",
+    "test:rules": "sh scripts/with-emulators.sh exec \"vitest run --project rules\"",
+    "test:integration": "sh scripts/with-emulators.sh exec \"vitest run --project integration\"",
+    "test:emulator": "sh scripts/with-emulators.sh exec \"vitest run --project integration --project rules\"",
     "test:all": "npm run test && npm run test:emulator",
-    "emulators": "firebase emulators:start --project uchi-plus-demo --import ./.emulator-data --export-on-exit ./.emulator-data",
+    "emulators": "sh scripts/with-emulators.sh start",
     "seed": "tsx scripts/seed.ts",
     "docker:build": "docker build -t uchi-plus:local .",
-    "docker:run": "docker run --rm -p 8080:8080 --env-file .env.docker uchi-plus:local",
-    "test:integration": "firebase emulators:exec --only firestore,auth,storage --project uchi-plus-demo \"vitest run --project integration\"",
-    "test:emulator": "firebase emulators:exec --only firestore,auth,storage --project uchi-plus-demo \"vitest run --project integration --project rules\""
+    "docker:run": "docker run --rm -p 8080:8080 --env-file .env.docker uchi-plus:local"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.0",

@@ -15,7 +15,7 @@
  *   - 経費 (draft / pending / approved / rejected それぞれ)
  *   - アルバムと写真 (ダミー画像)
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -25,6 +25,35 @@ import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// ---------------------------------------------------------------------------
+// .env.local を読み込む
+// (next dev は自動で読むが、このスクリプトは単体で動くので自前で読む)
+// ---------------------------------------------------------------------------
+function loadEnvLocal(): void {
+  const envPath = join(__dirname, '..', '.env.local');
+  if (!existsSync(envPath)) return;
+
+  for (const rawLine of readFileSync(envPath, 'utf8').split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const eq = line.indexOf('=');
+    if (eq === -1) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    // 引用符を外す
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    // すでに指定されている環境変数を上書きしない
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+}
+
+loadEnvLocal();
 
 // ---------------------------------------------------------------------------
 // 安全装置: エミュレータ以外への接続を拒否する
@@ -127,8 +156,30 @@ async function uploadSeedImage(fileName: string, storagePath: string): Promise<n
   return buffer.byteLength;
 }
 
+/**
+ * 同じシードを何度実行しても同じ状態になるように、
+ * 先にシード用の家族データを消してから作り直す。
+ * (消すのはシードが作った家族だけ。手で作ったデータには触らない)
+ */
+async function resetSeedData(): Promise<void> {
+  await db.recursiveDelete(db.collection('families').doc(FAMILY_ID));
+  await db.collection('inviteCodes').doc(INVITE_CODE).delete();
+  for (const user of USERS) {
+    await db.collection('users').doc(user.uid).delete();
+  }
+
+  // Cloud Storage 上のシード画像も消す (孤児オブジェクトを残さない)
+  try {
+    await bucket.deleteFiles({ prefix: `families/${FAMILY_ID}/` });
+  } catch {
+    // エミュレータ起動直後などで失敗しても続行する
+  }
+}
+
 async function main(): Promise<void> {
   console.log(`シードデータを投入します (project: ${PROJECT_ID})`);
+
+  await resetSeedData();
 
   // -------------------------------------------------------------------------
   // 1) Authentication のユーザー
