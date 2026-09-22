@@ -1189,8 +1189,27 @@ echo "WIF_SERVICE_ACCOUNT = ${DEPLOY_SA}"
 export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/uchi-plus/uchi-plus:v1"
 
 # ビルドして push する
-docker build -t "$IMAGE" .
-docker push "$IMAGE"
+#
+# 重要: --platform linux/amd64 を必ず付ける。
+#   Cloud Run は linux/amd64 のイメージしか動かせない。
+#   Apple Silicon の Mac でそのまま docker build すると arm64 のイメージが
+#   できてしまい、デプロイ時に次のエラーになる:
+#     Container manifest type '...oci.image.index.v1+json' must support amd64/linux
+#
+# --provenance=false を付ける理由:
+#   buildx は既定で provenance (来歴) の添付情報を付ける。添付情報があると
+#   単一アーキテクチャでも image index 形式になり、Cloud Run が受け付けない
+#   ことがある。付けないことで素直な単一マニフェストになる。
+#
+# --push で直接 push する理由:
+#   buildx の結果はローカルの docker images に載らない場合があるため、
+#   ビルドと push を 1 コマンドにまとめるのが確実。
+docker buildx build \
+  --platform linux/amd64 \
+  --provenance=false \
+  -t "$IMAGE" \
+  --push \
+  .
 
 # デプロイする
 gcloud run deploy uchi-plus \
@@ -1304,8 +1323,8 @@ export REGION="asia-northeast1"
 export TAG=$(git rev-parse --short=12 HEAD)
 export IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/uchi-plus/uchi-plus:${TAG}"
 
-docker build -t "$IMAGE" .
-docker push "$IMAGE"
+# Cloud Run は linux/amd64 のみ。Mac (Apple Silicon) からは必ず platform を指定する
+docker buildx build --platform linux/amd64 --provenance=false -t "$IMAGE" --push .
 
 gcloud run deploy uchi-plus --image="$IMAGE" --region="$REGION" --project="$PROJECT_ID"
 ```
@@ -1742,6 +1761,40 @@ gcloud storage buckets describe gs://PROJECT_ID-media --format="value(cors_confi
 | 組織ポリシーで allUsers が禁止されている | `constraints/iam.allowedPolicyMemberDomains` | 組織の管理者に例外設定を依頼する。個人アカウントの場合は通常発生しない |
 | デプロイ時に `iam.serviceaccounts.actAs` denied | デプロイ SA に `serviceAccountUser` が無い | 手順 10 の「Cloud Run を app SA として動かすために必要」を実行 |
 
+### デプロイ時に「must support amd64/linux」と言われる
+
+```
+ERROR: (gcloud.run.deploy) Cloud Run does not support image '...':
+Container manifest type 'application/vnd.oci.image.index.v1+json' must support amd64/linux.
+```
+
+Apple Silicon の Mac (arm64) でビルドしたイメージを push すると必ず起きます。
+Cloud Run が動かせるのは **linux/amd64** のイメージだけで、Mac の `docker build` は
+既定でホストと同じ arm64 のイメージを作るためです。
+
+対処 — platform を明示して作り直します。
+
+```bash
+docker buildx build --platform linux/amd64 --provenance=false -t "$IMAGE" --push .
+```
+
+エミュレーション (QEMU) で amd64 をビルドするため、Mac ではネイティブより
+数倍遅くなります。待ち時間が気になる場合は、ビルド自体を GCP 側で走らせます。
+
+```bash
+# Cloud Build 上でビルド + push (実行環境が amd64 なので platform 指定は不要)
+gcloud builds submit --tag "$IMAGE" --project "$PROJECT_ID"
+```
+
+なお GitHub Actions (`.github/workflows/deploy.yml`) は `ubuntu-latest` = amd64 で
+動くため、CI 経由のデプロイではこの問題は起きません。
+
+push 済みイメージのアーキテクチャは次で確認できます。
+
+```bash
+docker manifest inspect "$IMAGE" | grep -A2 platform
+```
+
 ### Cloud Run の起動に失敗する
 
 | 症状 | 原因 | 対処 |
@@ -1757,6 +1810,7 @@ gcloud storage buckets describe gs://PROJECT_ID-media --format="value(cors_confi
 gcloud run services logs read uchi-plus --region=asia-northeast1 --limit=100
 
 # ローカルで本番と同じ条件を再現する
+# (ここは手元で動かすだけなので、Mac ならネイティブ arch のままで速い方がよい)
 docker build -t uchi-plus:test .
 docker run --rm -p 8080:8080 -e PORT=8080 --env-file .env.local uchi-plus:test
 ```
