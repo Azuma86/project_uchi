@@ -2,7 +2,7 @@
   {
     "//": "ブラウザから署名付き URL へ直接 PUT / GET するために必要な CORS 設定",
     "//_apply": "gcloud storage buckets update gs://BUCKET_NAME --cors-file=infra/gcs-cors.json",
-    "origin": ["https://YOUR-CLOUD-RUN-URL.a.run.app", "http://localhost:3000"],
+    "origin": ["https://uchi-plus-179335101233.asia-northeast1.run.app", "http://localhost:3000"],
     "method": ["GET", "PUT", "HEAD"],
     "responseHeader": ["Content-Type", "Content-Length"],
     "maxAgeSeconds": 3600
