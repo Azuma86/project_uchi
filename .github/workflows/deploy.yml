@@ -144,11 +144,6 @@ jobs:
             NOTIFICATION_DRIVER=console
             OCR_DRIVER=dummy
             LOG_LEVEL=info
-          # 秘密情報は Secret Manager から注入する (GitHub Secrets には置かない)
-          # 使わない場合はこのブロックごと削除してよい
-          secrets: |
-            LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest
-            LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest
 
       - name: デプロイ結果の表示
         run: |
