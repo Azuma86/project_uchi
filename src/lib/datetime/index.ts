@@ -1,5 +1,5 @@
 import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
-import { addDays, addMonths, differenceInCalendarDays, startOfWeek } from 'date-fns';
+import { addDays, differenceInCalendarDays, startOfWeek } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { APP_TIME_ZONE } from '@/lib/constants';
 
@@ -104,12 +104,26 @@ export function startOfJstMonthUtc(monthKey: string): Date {
 
 /** "2026-09" の翌月初 0:00 (JST) を UTC で返す */
 export function endOfJstMonthUtc(monthKey: string): Date {
-  return addMonths(startOfJstMonthUtc(monthKey), 1);
+  return startOfJstMonthUtc(shiftMonthKey(monthKey, 1));
 }
 
-/** "2026-09" → "2026-10" / "2026-08" */
+/**
+ * "2026-09" → "2026-10" / "2026-08"
+ *
+ * date-fns の addMonths を使わないのはなぜか:
+ *   addMonths は「実行環境のローカルタイムゾーンの壁掛け時計」で月を進める。
+ *   startOfJstMonthUtc("2026-12") は 2026-11-30T15:00Z (JST 12/1 0:00) なので、
+ *   UTC で動く環境 (Cloud Run / CI) では「11月30日」の +1 か月 = 12月30日 となり、
+ *   JST では 12月31日、つまり月キーが "2026-12" のまま進まない。
+ *   JST の端末では偶然正しく動くため、ローカルでは気付けない。
+ *   年月の加減算に時刻は要らないので、数値計算だけで完結させる。
+ */
 export function shiftMonthKey(monthKey: string, delta: number): string {
-  return jstMonthKey(addMonths(startOfJstMonthUtc(monthKey), delta));
+  const [yearPart, monthPart] = monthKey.split('-');
+  const totalMonths = Number(yearPart) * 12 + (Number(monthPart) - 1) + delta;
+  const shiftedYear = Math.floor(totalMonths / 12);
+  const shiftedMonth = (((totalMonths % 12) + 12) % 12) + 1;
+  return `${String(shiftedYear).padStart(4, '0')}-${String(shiftedMonth).padStart(2, '0')}`;
 }
 
 export function isValidMonthKey(value: string): boolean {

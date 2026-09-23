@@ -77,6 +77,14 @@ describe('範囲クエリ用の境界', () => {
     expect(endOfJstMonthUtc('2026-09').toISOString()).toBe('2026-09-30T15:00:00.000Z');
   });
 
+  it('月の終端は前月より日数が多い月でも正しい', () => {
+    // 前月の日数 (2月=28日) に引きずられて 3 日ずれる実装になっていないか。
+    // ローカルタイムゾーン依存の実装だと JST の端末では通り、UTC で落ちる。
+    expect(endOfJstMonthUtc('2026-03').toISOString()).toBe('2026-03-31T15:00:00.000Z');
+    expect(endOfJstMonthUtc('2026-05').toISOString()).toBe('2026-05-31T15:00:00.000Z');
+    expect(endOfJstMonthUtc('2026-12').toISOString()).toBe('2026-12-31T15:00:00.000Z');
+  });
+
   it('月キーを前後に動かせる (年をまたぐ)', () => {
     expect(shiftMonthKey('2026-01', -1)).toBe('2025-12');
     expect(shiftMonthKey('2026-12', 1)).toBe('2027-01');

@@ -19,6 +19,9 @@ export default defineConfig({
           name: 'unit',
           environment: 'node',
           include: ['tests/unit/**/*.test.ts'],
+          // 本番 (Cloud Run) も CI も UTC で動く。ローカルの JST のまま流すと
+          // タイムゾーン依存のバグを取り逃がすので、実行時刻帯を揃えておく。
+          env: { TZ: 'UTC' },
         },
       },
       {
