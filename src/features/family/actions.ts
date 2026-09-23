@@ -13,15 +13,12 @@ import {
   removeMember,
   setActiveFamily,
   updateDisplayName,
-  updateFamilyName,
 } from '@/lib/data/families';
 import { getUserProfile } from '@/lib/auth/session';
 import {
   changeRoleSchema,
-  createFamilySchema,
   joinFamilySchema,
   memberActionSchema,
-  updateFamilySchema,
   updateProfileSchema,
 } from '@/lib/validation/schemas';
 import { normalizeInviteCode } from '@/lib/data/invite-code';
@@ -32,15 +29,23 @@ import { logger } from '@/lib/logging/logger';
 import type { Role } from '@/lib/types';
 
 /**
- * 家族まわりの Server Action。
+ * グループまわりの Server Action。
  *
  * すべての操作で必ず
  *   1. ログイン確認 (getCurrentUser / requireFamilyAccess)
- *   2. familyId が本人の所属家族かの確認
+ *   2. familyId が本人の所属グループかの確認
  *   3. role の確認 (admin 限定操作)
  *   4. 入力バリデーション (Zod)
  * を行う。クライアントの UI 状態は一切信用しない。
  */
+
+/**
+ * グループの表示名。ユーザーには設定させないので自動で付ける。
+ * 複数のグループに所属したときの切り替え UI で見分けられればよい。
+ */
+function defaultGroupName(displayName: string): string {
+  return `${displayName}のグループ`;
+}
 
 async function currentUserOrThrow() {
   const user = await getCurrentUser();
@@ -50,14 +55,10 @@ async function currentUserOrThrow() {
 
 export async function createFamilyAction(
   _prev: FormState,
-  formData: FormData,
+  _formData: FormData,
 ): Promise<FormState> {
   try {
     const user = await currentUserOrThrow();
-    const parsed = createFamilySchema.safeParse({ name: field(formData, 'name') });
-    if (!parsed.success) {
-      return { error: parsed.error.issues[0]?.message ?? '入力内容を確認してください。' };
-    }
 
     const profile = await ensureUserProfile({
       userId: user.uid,
@@ -71,7 +72,7 @@ export async function createFamilyAction(
       userId: user.uid,
       displayName: profile.displayName,
       photoUrl: profile.photoUrl,
-      name: parsed.data.name,
+      name: defaultGroupName(profile.displayName),
     });
   } catch (error) {
     return toFormState(error, { action: 'family.create' });
@@ -106,7 +107,7 @@ export async function joinFamilyAction(_prev: FormState, formData: FormData): Pr
       code: parsed.data.inviteCode,
     });
 
-    logger.info('家族に参加しました', {
+    logger.info('グループに参加しました', {
       userId: user.uid,
       familyId,
       action: 'family.join',
@@ -116,7 +117,7 @@ export async function joinFamilyAction(_prev: FormState, formData: FormData): Pr
       type: 'family.member_joined',
       familyId,
       recipients: [],
-      title: '新しい家族メンバーが参加しました',
+      title: '新しいメンバーが参加しました',
       body: `${profile.displayName} さんが参加しました。`,
       path: '/settings',
     });
@@ -140,27 +141,6 @@ export async function regenerateInviteCodeAction(
     return { success: '招待コードを再発行しました。', data: { code: info.code } };
   } catch (error) {
     return toFormState(error, { action: 'family.invite_code.regenerate' });
-  }
-}
-
-export async function updateFamilyNameAction(
-  _prev: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  try {
-    const parsed = updateFamilySchema.safeParse({
-      familyId: field(formData, 'familyId'),
-      name: field(formData, 'name'),
-    });
-    if (!parsed.success) {
-      return { error: parsed.error.issues[0]?.message ?? '入力内容を確認してください。' };
-    }
-    await requireAdminAccess(parsed.data.familyId);
-    await updateFamilyName(parsed.data);
-    revalidatePath('/', 'layout');
-    return { success: '家族の名前を変更しました。' };
-  } catch (error) {
-    return toFormState(error, { action: 'family.update_name' });
   }
 }
 
@@ -249,7 +229,7 @@ export async function updateProfileAction(_prev: FormState, formData: FormData):
   }
 }
 
-/** 家族から自分自身が抜ける (admin が 1 人のときは不可) */
+/** グループから自分自身が抜ける (admin が 1 人のときは不可) */
 export async function leaveFamilyAction(_prev: FormState, formData: FormData): Promise<FormState> {
   try {
     const familyId = field(formData, 'familyId');

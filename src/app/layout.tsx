@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-  // 家族専用の私的アプリなので検索エンジンには載せない
+  // 招待制の私的なアプリなので検索エンジンには載せない
   robots: {
     index: false,
     follow: false,

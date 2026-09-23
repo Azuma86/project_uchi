@@ -112,13 +112,18 @@ export const EXPENSE_STATUS_LABEL: Record<ExpenseStatus, string> = {
   rejected: '却下',
 };
 
+/**
+ * 経費のカテゴリ。
+ * 一覧から外したカテゴリ (旧 'entertainment' など) が保存済みデータに
+ * 残っていても、読み込み時に 'other' へ丸められる (src/lib/data/expenses.ts)。
+ */
 export const EXPENSE_CATEGORIES = [
   'food',
   'daily',
+  'clothing',
   'education',
   'medical',
   'transport',
-  'entertainment',
   'other',
 ] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
@@ -126,20 +131,20 @@ export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 export const EXPENSE_CATEGORY_LABEL: Record<ExpenseCategory, string> = {
   food: '食費',
   daily: '日用品',
+  clothing: '洋服',
   education: '教育',
   medical: '医療',
   transport: '交通',
-  entertainment: '娯楽',
   other: 'その他',
 };
 
 export const EXPENSE_CATEGORY_EMOJI: Record<ExpenseCategory, string> = {
   food: '🍚',
   daily: '🧺',
+  clothing: '👕',
   education: '📚',
   medical: '💊',
   transport: '🚃',
-  entertainment: '🎈',
   other: '📦',
 };
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createFamilySchema,
   eventFormSchema,
   expenseFormSchema,
   finalizePhotoSchema,
@@ -46,17 +45,6 @@ describe('招待コード', () => {
 
   it('桁数が違うと拒否する', () => {
     expect(inviteCodeSchema.safeParse('ABC').success).toBe(false);
-  });
-});
-
-describe('家族名', () => {
-  it('空文字を拒否する', () => {
-    expect(createFamilySchema.safeParse({ name: '   ' }).success).toBe(false);
-  });
-
-  it('前後の空白を取り除く', () => {
-    const result = createFamilySchema.safeParse({ name: '  山田家  ' });
-    expect(result.success && result.data.name).toBe('山田家');
   });
 });
 

@@ -140,18 +140,28 @@ describe('経費の申請 / 取り下げ / 削除', () => {
     expect(canWithdrawExpense({ userId: applicant, expense: expense('draft') })).toBe(false);
   });
 
-  it('承認済みは誰も削除できない (家計の記録として残す)', () => {
-    expect(canDeleteExpense({ role: ADMIN, userId: applicant, expense: expense('approved') })).toBe(
-      false,
+  it('承認済みも削除できる (入力ミスを後から片付けられるようにするため)', () => {
+    expect(canDeleteExpense({ role: ADMIN, userId: other, expense: expense('approved') })).toBe(
+      true,
+    );
+    expect(canDeleteExpense({ role: MEMBER, userId: applicant, expense: expense('approved') })).toBe(
+      true,
     );
   });
 
-  it('admin は承認済み以外を削除できる', () => {
+  it('admin はどの状態でも削除できる', () => {
     expect(canDeleteExpense({ role: ADMIN, userId: other, expense: expense('pending') })).toBe(true);
+    expect(canDeleteExpense({ role: ADMIN, userId: other, expense: expense('draft') })).toBe(true);
   });
 
   it('申請者は申請中のものを直接削除できない (先に取り下げる)', () => {
     expect(canDeleteExpense({ role: MEMBER, userId: applicant, expense: expense('pending') })).toBe(
+      false,
+    );
+  });
+
+  it('他人の経費は member には削除できない', () => {
+    expect(canDeleteExpense({ role: MEMBER, userId: other, expense: expense('approved') })).toBe(
       false,
     );
   });

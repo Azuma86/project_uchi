@@ -208,7 +208,7 @@ export function LoginForm() {
       ) : (
         <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
           {mode === 'signup' ? (
-            <Field label="表示名" htmlFor="displayName" required hint="家族に表示される名前です">
+            <Field label="表示名" htmlFor="displayName" required hint="ほかのメンバーに表示される名前です">
               <TextInput
                 id="displayName"
                 autoComplete="name"
@@ -216,7 +216,7 @@ export function LoginForm() {
                 maxLength={30}
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="おとうさん"
+                placeholder="ゆうき"
               />
             </Field>
           ) : null}

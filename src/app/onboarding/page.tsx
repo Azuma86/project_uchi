@@ -20,9 +20,9 @@ export default async function OnboardingPage() {
       <header className="flex flex-col items-center gap-3 text-center">
         <AppMark size={56} />
         <div>
-          <h1 className="text-xl font-bold text-ink">家族の設定をしましょう</h1>
+          <h1 className="text-xl font-bold text-ink">はじめる準備をしましょう</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            新しく家族をつくるか、招待コードで参加してください。
+            新しくはじめるか、招待コードで参加してください。
           </p>
         </div>
       </header>

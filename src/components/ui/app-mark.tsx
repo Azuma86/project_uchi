@@ -9,7 +9,7 @@ export function AppMark({ size = 40 }: { size?: number }) {
       aria-label="UCHI+"
       className="shrink-0"
     >
-      <rect width="64" height="64" rx="16" fill="#e07a5f" />
+      <rect width="64" height="64" rx="16" fill="#0b72b5" />
       <path
         d="M32 16 L51 32 H45.5 V48 H35.5 V39 H28.5 V48 H18.5 V32 H13 Z"
         fill="#fff"

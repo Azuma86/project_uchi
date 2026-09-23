@@ -32,7 +32,7 @@ export default async function ExpenseDetailPage({
   const session = await requireSession();
   const { expenseId } = await params;
 
-  // familyId スコープで取得するので、他家族の ID を渡しても見つからない
+  // familyId スコープで取得するので、他グループの ID を渡しても見つからない
   const expense = await getExpense({ familyId: session.familyId, expenseId });
   if (!expense) notFound();
 
@@ -129,7 +129,12 @@ export default async function ExpenseDetailPage({
             )
           ) : null}
 
-          <ExpenseActionsPanel familyId={session.familyId} expenseId={expense.id} {...permissions} />
+          <ExpenseActionsPanel
+            familyId={session.familyId}
+            expenseId={expense.id}
+            status={expense.status}
+            {...permissions}
+          />
 
           <ButtonLink href="/expenses" variant="ghost" size="lg">
             経費一覧に戻る

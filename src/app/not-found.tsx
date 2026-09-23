@@ -8,7 +8,7 @@ export default function NotFound() {
       </p>
       <h1 className="text-lg font-bold text-ink">ページが見つかりません</h1>
       <p className="text-sm text-ink-soft">
-        URL が変わったか、他の家族のデータにアクセスしようとした可能性があります。
+        URL が変わったか、アクセス権のないデータを開こうとした可能性があります。
       </p>
       <Link
         href="/"

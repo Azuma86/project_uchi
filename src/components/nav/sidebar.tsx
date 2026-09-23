@@ -7,7 +7,7 @@ import { AppMark } from '@/components/ui/app-mark';
 import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/cn';
 import { APP_NAME } from '@/lib/constants';
-import type { SessionContext } from '@/lib/types';
+import { ROLE_LABEL, type SessionContext } from '@/lib/types';
 
 /** PC 用のサイドバー。モバイルでは Bottom Nav に切り替わる。 */
 export function Sidebar({
@@ -61,7 +61,7 @@ export function Sidebar({
         <Avatar displayName={session.displayName} photoUrl={session.photoUrl} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-ink">{session.displayName}</p>
-          <p className="truncate text-xs text-ink-faint">{session.familyName}</p>
+          <p className="truncate text-xs text-ink-faint">{ROLE_LABEL[session.role]}</p>
         </div>
       </div>
     </aside>

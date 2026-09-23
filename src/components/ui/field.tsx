@@ -46,9 +46,27 @@ export function TextArea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
   return <textarea className={cn(CONTROL, 'min-h-[92px] resize-y', className)} {...props} />;
 }
 
+/**
+ * セレクトボックス。
+ *
+ * OS 既定の矢印は見た目がバラバラなので appearance-none で消し、
+ * 自前の ∨ アイコンを背景に描いている
+ * (画像ファイルを増やさないよう SVG を data URI で埋め込む)。
+ */
+const SELECT_CHEVRON =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%23546073' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 7.5 5 5 5-5'/%3E%3C/svg%3E\")";
+
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select className={cn(CONTROL, 'appearance-none bg-right pr-9', className)} {...props}>
+    <select
+      className={cn(CONTROL, 'appearance-none bg-no-repeat pr-10', className)}
+      style={{
+        backgroundImage: SELECT_CHEVRON,
+        backgroundPosition: 'right 12px center',
+        backgroundSize: '18px 18px',
+      }}
+      {...props}
+    >
       {children}
     </select>
   );

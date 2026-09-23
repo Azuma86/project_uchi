@@ -5,14 +5,13 @@ import { AppHeader } from '@/components/nav/app-header';
 import { Card, CardHeader } from '@/components/ui/card';
 import { SignOutButton } from '@/features/auth/sign-out-button';
 import {
-  FamilyNameForm,
   FamilySwitcher,
   InviteCodeCard,
   LeaveFamilyForm,
   MemberList,
   ProfileForm,
 } from '@/features/family/settings-forms';
-import { APP_NAME } from '@/lib/constants';
+import { APP_NAME, APP_TAGLINE } from '@/lib/constants';
 
 export const metadata: Metadata = { title: '設定' };
 export const dynamic = 'force-dynamic';
@@ -38,7 +37,7 @@ export default async function SettingsPage() {
 
           <Card>
             <CardHeader
-              title="家族メンバー"
+              title="メンバー"
               action={<span className="text-sm text-ink-faint">{members.length}人</span>}
             />
             <MemberList familyId={session.familyId} members={members} session={session} />
@@ -50,26 +49,19 @@ export default async function SettingsPage() {
           </Card>
 
           {session.role === 'admin' ? (
-            <>
-              <Card>
-                <CardHeader title="招待コード" />
-                <InviteCodeCard
-                  familyId={session.familyId}
-                  code={inviteCode?.code ?? null}
-                  expiresAt={inviteCode?.expiresAt ?? null}
-                />
-              </Card>
-
-              <Card>
-                <CardHeader title="家族の設定" />
-                <FamilyNameForm familyId={session.familyId} name={session.familyName} />
-              </Card>
-            </>
+            <Card>
+              <CardHeader title="招待コード" />
+              <InviteCodeCard
+                familyId={session.familyId}
+                code={inviteCode?.code ?? null}
+                expiresAt={inviteCode?.expiresAt ?? null}
+              />
+            </Card>
           ) : null}
 
           {session.families.length > 1 ? (
             <Card>
-              <CardHeader title="家族の切り替え" />
+              <CardHeader title="グループの切り替え" />
               <FamilySwitcher session={session} />
             </Card>
           ) : null}
@@ -84,7 +76,7 @@ export default async function SettingsPage() {
           </Card>
 
           <p className="text-center text-xs text-ink-faint">
-            {APP_NAME} — 家族専用のプライベートアプリ
+            {APP_NAME} — {APP_TAGLINE}
           </p>
         </div>
       </main>

@@ -147,7 +147,7 @@ export async function createFamily(params: {
 
   await batch.commit();
 
-  logger.info('家族を作成しました', {
+  logger.info('グループを作成しました', {
     userId: params.userId,
     familyId: familyRef.id,
     action: 'family.create',
@@ -186,12 +186,12 @@ export async function joinFamilyByInviteCode(params: {
 
     const familyRef = familyDoc(familyId);
     const familySnap = await tx.get(familyRef);
-    if (!familySnap.exists) throw notFound('招待先の家族が見つかりません。');
+    if (!familySnap.exists) throw notFound('招待先のグループが見つかりません。');
 
     const memberRef = memberDoc(familyId, params.userId);
     const memberSnap = await tx.get(memberRef);
     if (memberSnap.exists) {
-      throw conflict('すでにこの家族に参加しています。');
+      throw conflict('すでにこのグループに参加しています。');
     }
 
     const now = FieldValue.serverTimestamp();
@@ -216,7 +216,7 @@ export async function joinFamilyByInviteCode(params: {
       { merge: true },
     );
 
-    return { familyId, familyName: str(familySnap.data()?.name, '家族') };
+    return { familyId, familyName: str(familySnap.data()?.name, 'グループ') };
   });
 }
 
@@ -226,7 +226,7 @@ export async function getFamily(familyId: string): Promise<Family | null> {
   const data = snap.data() ?? {};
   return {
     id: snap.id,
-    name: str(data.name, '家族'),
+    name: str(data.name, 'グループ'),
     createdBy: str(data.createdBy),
     createdAt: tsToIso(data.createdAt),
     updatedAt: tsToIso(data.updatedAt),
@@ -305,16 +305,6 @@ export async function regenerateInviteCode(params: {
     createdBy: params.userId,
     createdAt: new Date().toISOString(),
   };
-}
-
-export async function updateFamilyName(params: {
-  familyId: string;
-  name: string;
-}): Promise<void> {
-  await familyDoc(params.familyId).update({
-    name: params.name,
-    updatedAt: FieldValue.serverTimestamp(),
-  });
 }
 
 async function countAdmins(familyId: string): Promise<number> {
@@ -455,7 +445,7 @@ export async function leaveFamily(params: {
     const adminCount = await countAdmins(params.familyId);
     if (adminCount <= 1) {
       throw conflict(
-        '管理者が1人のため家族から抜けられません。他のメンバーを管理者にしてからお試しください。',
+        '管理者が1人のためグループから抜けられません。他のメンバーを管理者にしてからお試しください。',
       );
     }
   }
@@ -478,7 +468,7 @@ export async function leaveFamily(params: {
   );
   await batch.commit();
 
-  logger.info('家族から脱退しました', {
+  logger.info('グループから脱退しました', {
     userId: params.userId,
     familyId: params.familyId,
     action: 'family.leave',

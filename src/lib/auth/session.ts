@@ -143,7 +143,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
 
   // 家族が 1 つだけの場合は追加 read をしない (ほとんどの家庭がこのケース)
   let families: SessionContext['families'] = [
-    { id: activeFamilyId, name: str(familyData.name, '家族'), role },
+    { id: activeFamilyId, name: str(familyData.name, 'グループ'), role },
   ];
   if (profile.familyIds.length > 1) {
     const others = await db.getAll(
@@ -157,7 +157,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
         .filter((snap) => snap.exists)
         .map((snap) => ({
           id: snap.id,
-          name: str(snap.data()?.name, '家族'),
+          name: str(snap.data()?.name, 'グループ'),
           role: 'member' as Role,
         })),
     ];
@@ -169,7 +169,7 @@ export const getSessionContext = cache(async (): Promise<SessionContext | null> 
     email: profile.email,
     photoUrl: strOrNull(memberData.photoUrl) ?? profile.photoUrl,
     familyId: activeFamilyId,
-    familyName: str(familyData.name, '家族'),
+    familyName: str(familyData.name, 'グループ'),
     role,
     families,
   };
@@ -196,12 +196,12 @@ export async function requireFamilyAccess(familyId: string): Promise<SessionCont
     // 複数家族に所属している場合は所属していれば許可し、コンテキストを差し替える
     const belongs = session.families.some((f) => f.id === familyId);
     if (!belongs) {
-      logger.warn('所属外の家族へのアクセスを拒否しました', {
+      logger.warn('所属外のグループへのアクセスを拒否しました', {
         userId: session.userId,
         familyId,
         action: 'family.access_denied',
       });
-      throw forbidden('この家族のデータにはアクセスできません。');
+      throw forbidden('このグループのデータにはアクセスできません。');
     }
     return switchFamilyContext(session, familyId);
   }
@@ -214,12 +214,12 @@ async function switchFamilyContext(session: SessionContext, familyId: string): P
     db.collection('families').doc(familyId).get(),
     db.collection('families').doc(familyId).collection('members').doc(session.userId).get(),
   ]);
-  if (!familySnap.exists || !memberSnap.exists) throw forbidden('この家族のデータにはアクセスできません。');
+  if (!familySnap.exists || !memberSnap.exists) throw forbidden('このグループのデータにはアクセスできません。');
   const role = (memberSnap.data()?.role === 'admin' ? 'admin' : 'member') as Role;
   return {
     ...session,
     familyId,
-    familyName: str(familySnap.data()?.name, '家族'),
+    familyName: str(familySnap.data()?.name, 'グループ'),
     role,
   };
 }

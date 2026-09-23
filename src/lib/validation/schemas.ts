@@ -25,13 +25,10 @@ export const idSchema = z
 export const roleSchema = z.enum(ROLES as [string, ...string[]]);
 
 // ---------------------------------------------------------------------------
-// 家族
+// グループ (招待・メンバー)
+//
+// グループ名はユーザーが入力しないので、対応するスキーマも持たない。
 // ---------------------------------------------------------------------------
-
-export const createFamilySchema = z.object({
-  name: trimmed(50).min(1, '家族の名前を入力してください。'),
-});
-export type CreateFamilyInput = z.infer<typeof createFamilySchema>;
 
 export const inviteCodeSchema = z
   .string()
@@ -43,11 +40,6 @@ export const joinFamilySchema = z.object({
   inviteCode: inviteCodeSchema,
 });
 export type JoinFamilyInput = z.infer<typeof joinFamilySchema>;
-
-export const updateFamilySchema = z.object({
-  familyId: idSchema,
-  name: trimmed(50).min(1, '家族の名前を入力してください。'),
-});
 
 export const memberActionSchema = z.object({
   familyId: idSchema,

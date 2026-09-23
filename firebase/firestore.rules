@@ -21,6 +21,7 @@ rules_version = '2';
 //   - 所属していない家族のデータは読めない / 書けない
 //   - member は admin 専用操作 (承認・メンバー管理) を実行できない
 //   - 経費の承認・却下は admin のみ、かつ pending からのみ
+//   - 経費の削除は admin か申請者本人のみ (申請者は審査中のものを消せない)
 //   - クライアントが familyId を書き換えても別家族へは到達できない
 //     (パスの familyId に対する members/{自分の uid} の存在で判定するため)
 // =============================================================================
@@ -103,7 +104,7 @@ service cloud.firestore {
         && request.resource.data.amount > 0
         && request.resource.data.amount <= 10000000
         && request.resource.data.category in
-           ['food', 'daily', 'education', 'medical', 'transport', 'entertainment', 'other']
+           ['food', 'daily', 'clothing', 'education', 'medical', 'transport', 'other']
         && isNonEmptyString(request.resource.data.merchant, 100);
     }
 
@@ -282,7 +283,7 @@ service cloud.firestore {
           && request.resource.data.amount > 0
           && request.resource.data.amount <= 10000000
           && request.resource.data.category in
-             ['food', 'daily', 'education', 'medical', 'transport', 'entertainment', 'other']
+             ['food', 'daily', 'clothing', 'education', 'medical', 'transport', 'other']
           && isNonEmptyString(request.resource.data.merchant, 100)
           && request.resource.data.purchaseDate is timestamp
           && (request.resource.data.receiptStoragePath == null
@@ -292,9 +293,11 @@ service cloud.firestore {
         // 更新は 2 通りだけ。それ以外は拒否。
         allow update: if isApplicantEdit(familyId) || isAdminReview(familyId);
 
-        // 承認済みは家計の記録として残す (誰も消せない)。
+        // 削除は admin か申請者本人。承認済みも削除できる
+        // (入力ミスや重複申請を後から片付けられるようにするため)。
+        // 申請者は pending だけ直接削除できない — 審査中の取り違えを防ぐため、
+        // 先に取り下げて draft に戻す必要がある。
         allow delete: if isMember(familyId)
-          && resource.data.status != 'approved'
           && ((resource.data.applicantUserId == uid() && resource.data.status != 'pending')
               || isAdmin(familyId));
       }

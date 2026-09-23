@@ -63,7 +63,7 @@ export function EventForm({
           name="allDay"
           checked={allDay}
           onChange={(e) => setAllDay(e.target.checked)}
-          className="h-5 w-5 accent-[#e07a5f]"
+          className="h-5 w-5 accent-brand"
         />
         <span className="text-[15px] text-ink">終日</span>
       </label>
@@ -100,7 +100,7 @@ export function EventForm({
         </div>
       )}
 
-      <Field label="誰の予定" htmlFor="assignedUserId" hint="家族全体の予定なら「みんな」のまま">
+      <Field label="誰の予定" htmlFor="assignedUserId" hint="全員の予定なら「みんな」のまま">
         <Select id="assignedUserId" name="assignedUserId" defaultValue={event?.assignedUserId ?? ''}>
           <option value="">みんな</option>
           {members.map((member) => (

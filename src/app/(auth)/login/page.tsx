@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { LoginForm } from '@/features/auth/login-form';
 import { getCurrentUser } from '@/lib/auth/session';
-import { APP_DESCRIPTION, APP_NAME } from '@/lib/constants';
+import { APP_NAME, APP_TAGLINE } from '@/lib/constants';
 import { AppMark } from '@/components/ui/app-mark';
 
 export const metadata: Metadata = { title: 'ログイン' };
@@ -20,7 +20,13 @@ export default async function LoginPage() {
         <AppMark size={64} />
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">{APP_NAME}</h1>
-          <p className="mt-1 text-sm text-ink-soft">{APP_DESCRIPTION}</p>
+          {/*
+            キャッチコピーは必ず 1 行に収める。
+            折り返すと見た目が崩れるので、狭い画面では文字を少しだけ詰める。
+          */}
+          <p className="mt-1 whitespace-nowrap text-[clamp(12px,3.6vw,14px)] text-ink-soft">
+            {APP_TAGLINE}
+          </p>
         </div>
       </header>
 
@@ -28,10 +34,9 @@ export default async function LoginPage() {
         <LoginForm />
       </div>
 
-      <p className="text-center text-xs leading-relaxed text-ink-faint">
-        このアプリは家族専用です。
-        <br />
-        ログイン後、家族を作成するか招待コードで参加してください。
+      {/* text-balance で行長をそろえる (手動の <br> だと幅によって端数が出る) */}
+      <p className="text-center text-xs leading-relaxed text-balance text-ink-faint">
+        招待された人だけが使えるプライベートアプリです。ログイン後、グループをつくるか招待コードで参加してください。
       </p>
     </main>
   );

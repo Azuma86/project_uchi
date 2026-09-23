@@ -10,6 +10,7 @@ import {
 import { emptyFormState } from '@/lib/form-state';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { FormError, FormSuccess, TextArea } from '@/components/ui/field';
+import type { ExpenseStatus } from '@/lib/types';
 
 /**
  * 経費詳細の操作ボタン群。
@@ -21,6 +22,7 @@ import { FormError, FormSuccess, TextArea } from '@/components/ui/field';
 export function ExpenseActionsPanel({
   familyId,
   expenseId,
+  status,
   canSubmit,
   canWithdraw,
   canEdit,
@@ -29,6 +31,7 @@ export function ExpenseActionsPanel({
 }: {
   familyId: string;
   expenseId: string;
+  status: ExpenseStatus;
   canSubmit: boolean;
   canWithdraw: boolean;
   canEdit: boolean;
@@ -52,6 +55,11 @@ export function ExpenseActionsPanel({
     emptyFormState,
   );
   const [comment, setComment] = useState('');
+
+  const isApproved = status === 'approved';
+  const confirmMessage = isApproved
+    ? 'この承認済みの経費を削除しますか?\n今月の承認済み合計からも取り除かれます。'
+    : 'この経費を削除しますか?';
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,7 +138,8 @@ export function ExpenseActionsPanel({
         <form
           action={deleteAction}
           onSubmit={(event) => {
-            if (!window.confirm('この経費を削除しますか?')) event.preventDefault();
+            // 承認済みは集計に入っているので、消える影響を明示してから確認する
+            if (!window.confirm(confirmMessage)) event.preventDefault();
           }}
           className="flex flex-col gap-2"
         >
@@ -140,6 +149,11 @@ export function ExpenseActionsPanel({
           <Button type="submit" variant="danger" size="lg" disabled={deleting}>
             {deleting ? '削除中…' : '削除する'}
           </Button>
+          {isApproved ? (
+            <p className="text-center text-xs leading-relaxed text-balance text-ink-faint">
+              削除すると承認済みの集計からも取り除かれます。元には戻せません。
+            </p>
+          ) : null}
         </form>
       ) : null}
     </div>

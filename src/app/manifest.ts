@@ -19,7 +19,7 @@ import {
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${APP_NAME} — 家族の予定・写真・家計`,
+    name: `${APP_NAME} — 予定・写真・経費`,
     short_name: APP_SHORT_NAME,
     description: APP_DESCRIPTION,
     start_url: '/',

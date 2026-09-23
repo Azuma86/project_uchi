@@ -3,30 +3,32 @@
 /*
  * UCHI+ デザイントークン
  *
- * 方針: 家族が毎日開くアプリなので、色数を絞って落ち着いた印象にする。
- *  - 背景はわずかに温かみのあるオフホワイト (真っ白は目が疲れる)
- *  - アクセントはテラコッタ 1 色。重要な操作にだけ使う。
+ * 方針: 毎日開くアプリなので、色数を絞って落ち着いた印象にする。
+ *  - ベースカラーはオーシャンブルー。重要な操作にだけ使う。
+ *  - 背景はごくわずかに青みを含んだオフホワイト (真っ白は目が疲れる)
+ *  - 文字色も青寄りのスレートにして、ベースカラーと調和させる
+ *  - 文字色は白背景でコントラスト比 4.5:1 以上 (WCAG AA)
  *  - タップ領域は最低 44px (iOS のヒューマンインターフェースガイドライン)
  */
 @theme {
-  --color-cream: #faf8f5;
+  --color-canvas: #f4f7fa;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3f0eb;
-  --color-ink: #2e2a26;
-  --color-ink-soft: #6b6259;
-  --color-ink-faint: #9c948b;
-  --color-line: #e6e0d8;
-  --color-brand: #e07a5f;
-  --color-brand-dark: #c8603f;
-  --color-brand-soft: #fbe9e3;
-  --color-accent: #6b8f71;
-  --color-accent-soft: #e6efe6;
-  --color-warn: #d99a2b;
-  --color-warn-soft: #fbf1dd;
-  --color-danger: #c4553d;
-  --color-danger-soft: #fbe6e1;
-  --color-info: #4a7fa5;
-  --color-info-soft: #e4eef5;
+  --color-surface-muted: #eaeff5;
+  --color-ink: #17222e;
+  --color-ink-soft: #546073;
+  --color-ink-faint: #66717f;
+  --color-line: #dde4ed;
+  --color-brand: #0b72b5;
+  --color-brand-dark: #075b91;
+  --color-brand-soft: #e2f1fa;
+  --color-accent: #0d7a70;
+  --color-accent-soft: #dcf2ef;
+  --color-warn: #9a6412;
+  --color-warn-soft: #fbf0db;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fbe5e3;
+  --color-info: #28477d;
+  --color-info-soft: #e3e9f4;
 
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
@@ -46,7 +48,7 @@ html {
 }
 
 body {
-  background-color: var(--color-cream);
+  background-color: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   /* iPhone のホームインジケータ / ノッチ対応 */
@@ -87,7 +89,7 @@ a {
   ::-webkit-scrollbar-thumb {
     background-color: var(--color-line);
     border-radius: 999px;
-    border: 3px solid var(--color-cream);
+    border: 3px solid var(--color-canvas);
   }
 }
 

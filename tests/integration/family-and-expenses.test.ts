@@ -409,7 +409,7 @@ describe('経費の申請から承認までの流れ', () => {
     ).rejects.toMatchObject({ code: 'conflict' });
   });
 
-  it('承認済みは削除できない', async () => {
+  it('承認済みも削除できる', async () => {
     const { familyId } = await setupFamily();
     const id = await createExpense({ familyId, userId: KID, input: form, submit: true });
     await reviewExpense({
@@ -421,8 +421,32 @@ describe('経費の申請から承認までの流れ', () => {
       adminComment: '',
     });
 
+    await deleteExpense({ familyId, expenseId: id, userId: DAD, role: 'admin' });
+    expect(await getExpense({ familyId, expenseId: id })).toBeNull();
+  });
+
+  it('申請者は自分の承認済みを削除できる', async () => {
+    const { familyId } = await setupFamily();
+    const id = await createExpense({ familyId, userId: KID, input: form, submit: true });
+    await reviewExpense({
+      familyId,
+      expenseId: id,
+      reviewerUserId: DAD,
+      reviewerRole: 'admin',
+      decision: 'approved',
+      adminComment: '',
+    });
+
+    await deleteExpense({ familyId, expenseId: id, userId: KID, role: 'member' });
+    expect(await getExpense({ familyId, expenseId: id })).toBeNull();
+  });
+
+  it('申請中のものは申請者が直接削除できない (先に取り下げる)', async () => {
+    const { familyId } = await setupFamily();
+    const id = await createExpense({ familyId, userId: KID, input: form, submit: true });
+
     await expect(
-      deleteExpense({ familyId, expenseId: id, userId: DAD, role: 'admin' }),
+      deleteExpense({ familyId, expenseId: id, userId: KID, role: 'member' }),
     ).rejects.toMatchObject({ code: 'forbidden' });
   });
 

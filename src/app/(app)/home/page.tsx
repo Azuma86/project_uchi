@@ -54,7 +54,7 @@ export default async function HomePage() {
             </h2>
           </section>
 
-          {/* 今月の家計サマリー */}
+          {/* 今月の支出サマリー */}
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/expenses"
@@ -128,7 +128,7 @@ export default async function HomePage() {
               <EmptyState
                 icon="📷"
                 title="まだ写真がありません"
-                description="家族の思い出を追加しましょう"
+                description="思い出の写真を追加しましょう"
                 action={
                   <ButtonLink href="/album" size="sm" variant="secondary">
                     写真を追加

@@ -7,10 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Field, FormError, TextInput } from '@/components/ui/field';
 
 /**
- * オンボーディング (家族の作成 / 参加)。
+ * オンボーディング (グループの作成 / 参加)。
  *
  * useActionState を使い、JavaScript が無効でも form の POST として
  * 動作する形にしている (Progressive Enhancement)。
+ *
+ * 作成時に入力してもらう項目は無い。名前はサーバー側で自動的に付けるので、
+ * 「つくる」を押すだけで使いはじめられる。
  */
 export function OnboardingForms() {
   const [tab, setTab] = useState<'create' | 'join'>('create');
@@ -22,7 +25,7 @@ export function OnboardingForms() {
       <div className="flex rounded-xl bg-surface-muted p-1 text-sm">
         {(
           [
-            ['create', '家族をつくる'],
+            ['create', '新しくはじめる'],
             ['join', '招待コードで参加'],
           ] as const
         ).map(([value, label]) => (
@@ -42,27 +45,16 @@ export function OnboardingForms() {
       {tab === 'create' ? (
         <form action={createAction} className="flex flex-col gap-4">
           <FormError message={createState.error} />
-          <Field
-            label="家族の名前"
-            htmlFor="family-name"
-            required
-            hint="例: 山田家 / さとう家"
-          >
-            <TextInput
-              id="family-name"
-              name="name"
-              required
-              maxLength={50}
-              placeholder="山田家"
-              autoComplete="off"
-            />
-          </Field>
-          <p className="text-xs leading-relaxed text-ink-faint">
-            作成した人は自動的に<strong className="text-ink-soft">管理者</strong>になります。
-            管理者は招待コードの発行・メンバー管理・経費の承認ができます。
-          </p>
+          <ul className="flex flex-col gap-2 text-sm leading-relaxed text-ink-soft">
+            <Point>予定・写真・経費を、招待した人だけで共有できます。</Point>
+            <Point>
+              作成した人は自動的に<strong className="font-semibold text-ink">管理者</strong>
+              になります。
+            </Point>
+            <Point>管理者は招待コードの発行・メンバー管理・経費の承認ができます。</Point>
+          </ul>
           <Button type="submit" size="lg" disabled={creating}>
-            {creating ? '作成中…' : '家族をつくる'}
+            {creating ? '作成中…' : 'はじめる'}
           </Button>
         </form>
       ) : (
@@ -72,7 +64,7 @@ export function OnboardingForms() {
             label="招待コード"
             htmlFor="invite-code"
             required
-            hint="家族の管理者から受け取った10桁のコード"
+            hint="管理者から受け取った10桁のコード"
           >
             <TextInput
               id="invite-code"
@@ -86,10 +78,21 @@ export function OnboardingForms() {
             />
           </Field>
           <Button type="submit" size="lg" disabled={joining}>
-            {joining ? '参加中…' : '家族に参加する'}
+            {joining ? '参加中…' : '参加する'}
           </Button>
         </form>
       )}
     </div>
+  );
+}
+
+function Point({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex gap-2">
+      <span aria-hidden className="mt-px shrink-0 text-brand">
+        ・
+      </span>
+      <span>{children}</span>
+    </li>
   );
 }

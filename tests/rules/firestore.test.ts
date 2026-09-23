@@ -611,8 +611,8 @@ describe('経費の作成と編集', () => {
     );
   });
 
-  it('承認済みの経費は削除できない (家計の記録として残す)', async () => {
-    await assertFails(
+  it('admin は承認済みの経費も削除できる', async () => {
+    await assertSucceeds(
       deleteDoc(doc(ctx(DAD), 'families', FAMILY_A, 'expenses', 'expense-approved')),
     );
   });

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = join(__dirname, '..', 'public', 'icons');
 
-const BRAND = [0xe0, 0x7a, 0x5f];
+const BRAND = [0x0b, 0x72, 0xb5];
 const WHITE = [0xff, 0xff, 0xff];
 
 // ---------------------------------------------------------------------------

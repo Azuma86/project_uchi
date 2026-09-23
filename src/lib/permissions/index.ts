@@ -87,13 +87,18 @@ export function canWithdrawExpense(params: {
   return params.expense.applicantUserId === params.userId && params.expense.status === 'pending';
 }
 
-/** 経費の削除。承認済みは家計の記録なので削除させない (admin も含む)。 */
+/**
+ * 経費の削除。
+ *
+ * 承認済みも削除できる (入力ミスや重複申請を後から片付けられるようにするため)。
+ * ただし「審査中に申請者が消してしまう」事故は防ぎたいので、pending だけは
+ * 申請者が直接削除できない — 先に取り下げる必要がある。admin は例外なく削除できる。
+ */
 export function canDeleteExpense(params: {
   role: Role;
   userId: string;
   expense: Pick<Expense, 'status' | 'applicantUserId'>;
 }): boolean {
-  if (params.expense.status === 'approved') return false;
   if (isAdmin(params.role)) return true;
   return params.expense.applicantUserId === params.userId && params.expense.status !== 'pending';
 }

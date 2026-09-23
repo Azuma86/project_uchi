@@ -437,7 +437,7 @@ async function main(): Promise<void> {
       purchaseDate: jstDate(-5),
       merchant: 'ゲームショップ',
       amount: 6800,
-      category: 'entertainment',
+      category: 'clothing',
       description: '新しいゲーム',
       receiptStoragePath: null,
       status: 'rejected',

@@ -130,10 +130,8 @@ export function ExpenseForm({
         </ButtonLink>
       </div>
 
-      <p className="text-center text-xs leading-relaxed text-ink-faint">
-        「申請する」を押すと管理者の承認待ちになります。
-        <br />
-        承認待ちの間は内容を編集できません (取り下げれば編集できます)。
+      <p className="text-center text-xs leading-relaxed text-balance text-ink-faint">
+        「申請する」を押すと管理者の承認待ちになります。承認待ちの間は内容を編集できません (取り下げれば編集できます)。
       </p>
     </form>
   );

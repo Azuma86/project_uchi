@@ -84,7 +84,7 @@ export default async function AlbumPage() {
                 <EmptyState
                   icon="📷"
                   title="まだ写真がありません"
-                  description="上のボタンから家族の写真を追加しましょう"
+                  description="上のボタンから写真を追加しましょう"
                 />
               </Card>
             ) : (
