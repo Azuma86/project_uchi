@@ -539,6 +539,13 @@ Terraform を使う場合は `infra/terraform/storage.tf` の `cors` ブロッ�
 適用されます。署名付き URL や GCS の JSON API には適用されません。
 そちらは **バケットを非公開に保つこと** と **IAM** で守ります。
 
+**このルールは本番へ配布していません。** Firebase Storage のバケットを
+作っていないため、適用する対象がそもそも存在しないからです。配布するには
+まずバケットを作る必要があり、それは「拒否するための入口を新設する」ことに
+なります。入口が無い今の状態の方が強いので、`firebase deploy` の `--only` に
+`storage` を含めていません。このファイルはローカルのエミュレータが読むほか、
+将来 Firebase Storage SDK を使う方式へ切り替える際の出発点として残しています。
+
 ---
 
 ## セキュリティ設計
@@ -679,6 +686,7 @@ GitHub Actions が Workload Identity Federation を通じて借ります。
 | `roles/iam.serviceAccountUser` | **app SA に対して** | Cloud Run を app SA として実行するために必要 |
 | `roles/firebaserules.admin` | プロジェクト | Security Rules のデプロイ |
 | `roles/datastore.indexAdmin` | プロジェクト | Firestore インデックスのデプロイ |
+| `roles/serviceusage.serviceUsageConsumer` | プロジェクト | firebase-tools が配布前に API の有効状態を確認するため |
 
 **このサービスアカウントは家族のデータを読めません。**
 `datastore.user` も `storage.objectViewer` も付けていないためです。
@@ -1088,7 +1096,8 @@ for ROLE in \
   roles/artifactregistry.writer \
   roles/run.admin \
   roles/firebaserules.admin \
-  roles/datastore.indexAdmin
+  roles/datastore.indexAdmin \
+  roles/serviceusage.serviceUsageConsumer
 do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${DEPLOY_SA}" --role="$ROLE" --condition=None
@@ -1246,9 +1255,12 @@ gcloud run services describe uchi-plus --region="$REGION" \
 
 ```bash
 npx firebase deploy \
-  --only firestore:rules,firestore:indexes,storage \
+  --only firestore:rules,firestore:indexes \
   --project "$PROJECT_ID"
 ```
+
+`storage` を含めていないのは、このプロジェクトに Firebase Storage の
+バケットを作っていないためです (後述の「Storage Security Rules」を参照)。
 
 **これを忘れるとアプリが動きません。**
 Firestore を「本番環境モード」で作ると初期ルールが全拒否になっているためです。

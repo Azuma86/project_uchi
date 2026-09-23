@@ -153,10 +153,20 @@ jobs:
       # -----------------------------------------------------------------------
       # Firestore のルールとインデックスも一緒に反映する
       # (アプリだけ更新してルールが古いままだと権限エラーになるため)
+      #
+      # storage を対象に含めていない理由:
+      #   このプロジェクトには Firebase Storage のバケットが存在しない。
+      #   アプリは Admin SDK が発行する署名付き URL で GCS を直接読み書きし、
+      #   ブラウザから firebasestorage.googleapis.com を通らないため、
+      #   Storage Rules が適用される経路そのものが無い (README「Storage Security Rules」)。
+      #   storage を含めると firebase-tools がデフォルトバケットを解決しようとして
+      #   失敗する。ルールを配るためだけに使わないバケットを作ることになるので含めない。
+      #   将来 Firebase Storage SDK を使う方式に切り替えるときは
+      #   firebase/storage.rules はそのまま使えるので、ここに storage を戻すこと。
       # -----------------------------------------------------------------------
       - name: Firestore ルール / インデックスのデプロイ
         run: |
           npx firebase-tools@15 deploy \
-            --only firestore:rules,firestore:indexes,storage \
+            --only firestore:rules,firestore:indexes \
             --project "${{ secrets.GCP_PROJECT_ID }}" \
             --non-interactive

@@ -75,6 +75,12 @@ locals {
     "roles/run.admin",               # Cloud Run サービスの更新
     "roles/firebaserules.admin",     # Security Rules のデプロイ
     "roles/datastore.indexAdmin",    # Firestore インデックスのデプロイ
+
+    # firebase-tools は配布前に「firestore.googleapis.com が有効か」を
+    # Service Usage API へ問い合わせる。その際 x-goog-user-project ヘッダを
+    # 付けるため、services.get だけの serviceUsageViewer では足りず
+    # services.use を含む Consumer が要る。これが無いと配布は 403 で落ちる。
+    "roles/serviceusage.serviceUsageConsumer",
   ]
 }
 
